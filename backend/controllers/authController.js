@@ -1,3 +1,4 @@
+// backend/controllers/authController.js
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
@@ -19,6 +20,8 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email, password: hashedPassword });
 
+    const token = generateToken(user._id);
+
     return res.status(201).json({
       success: true,
       message: "User registered successfully",
@@ -26,8 +29,8 @@ const registerUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
-        token: generateToken(user._id),
       },
+      token, // ✅ send token separately
     });
   } catch (error) {
     console.error("Register Error:", error);
@@ -42,19 +45,21 @@ const loginUser = async (req, res) => {
   try {
     const { name, email, password, photo } = req.body;
 
-    // 🟢 If Google login (no password)
+    // 🟢 Google Login (no password)
     if (!password && name && email) {
       let user = await User.findOne({ email });
 
       if (!user) {
-        // Create user if not found
+        // create new user from Google data
         user = await User.create({
           name,
           email,
           photo,
-          password: null, // since Google users don’t have password
+          password: null,
         });
       }
+
+      const token = generateToken(user._id);
 
       return res.status(200).json({
         success: true,
@@ -64,27 +69,33 @@ const loginUser = async (req, res) => {
           name: user.name,
           email: user.email,
           photo: user.photo,
-          token: generateToken(user._id),
         },
+        token, // ✅ token returned separately
       });
     }
 
-    // 🔹 Normal Email/Password login
+    // 🔹 Normal Email/Password Login
     const user = await User.findOne({ email });
-    if (user && (await bcrypt.compare(password, user.password))) {
-      return res.status(200).json({
-        success: true,
-        message: "Login successful",
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          token: generateToken(user._id),
-        },
-      });
-    } else {
+    if (!user)
+      return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(password, user.password || "");
+    if (!isMatch)
       return res.status(401).json({ message: "Invalid credentials" });
-    }
+
+    const token = generateToken(user._id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        photo: user.photo,
+      },
+      token, // ✅ uniform token placement
+    });
   } catch (error) {
     console.error("Login Error:", error);
     return res.status(500).json({ message: "Server error during login" });

@@ -1,18 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
-import API from "../api";
+import API, { setAuth, isLoggedIn } from "../api"; // ✅ helper imports
 
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState("");
 
+  /* 🧭 Redirect if already logged in */
+  useEffect(() => {
+    if (isLoggedIn()) {
+      navigate("/dashboard/jobs", { replace: true });
+    }
+  }, [navigate]);
+
+  /* ================================
+     🔐 Email/Password Login Handler
+  ================================== */
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email || !password) {
@@ -22,23 +32,35 @@ export default function Login() {
 
     try {
       setLoading(true);
+
+      // Firebase Authentication
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Call backend to generate JWT
       const res = await API.post("/api/auth/login", {
         email: user.email,
         name: user.displayName || "User",
       });
 
-      if (res.data) {
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            name: res.data.user?.name || user.displayName || "User",
-            email: res.data.user?.email || user.email,
-          })
-        );
-        navigate("/dashboard/jobs");
+      // ✅ Save token & user
+      if (res.data?.user?.token) {
+        setAuth({
+          token: res.data.user.token,
+          user: {
+            name: res.data.user.name,
+            email: res.data.user.email,
+          },
+        });
+
+        console.log("✅ Login success, token stored:", res.data.user.token);
+
+        // ⏳ Give storage a moment before navigation
+        setTimeout(() => {
+          navigate("/dashboard/jobs", { replace: true });
+        }, 300);
+      } else {
+        throw new Error("Token not received from server");
       }
     } catch (err) {
       console.error("Login Error:", err);
@@ -48,27 +70,42 @@ export default function Login() {
     }
   };
 
+  /* ================================
+     🔐 Google Sign-In Handler
+  ================================== */
   const googleLogin = async () => {
     setGoogleLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
+      // Call backend API to get JWT
       const res = await API.post("/api/auth/login", {
         email: user.email,
         name: user.displayName,
+        photo: user.photoURL,
       });
 
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          name: res.data.user?.name || user.displayName,
-          email: res.data.user?.email || user.email,
-          photo: user.photoURL,
-        })
-      );
+      // ✅ Save token & user info
+      if (res.data?.user?.token) {
+        setAuth({
+          token: res.data.user.token,
+          user: {
+            name: res.data.user.name,
+            email: res.data.user.email,
+            photo: res.data.user.photo,
+          },
+        });
 
-      navigate("/dashboard/jobs");
+        console.log("✅ Google login success, token stored:", res.data.user.token);
+
+        // ⏳ Navigate after short delay
+        setTimeout(() => {
+          navigate("/dashboard/jobs", { replace: true });
+        }, 300);
+      } else {
+        throw new Error("Token not received from server");
+      }
     } catch (err) {
       console.error("Google Sign-In Error:", err);
       setError("Google sign-in failed. Please try again.");
@@ -77,6 +114,9 @@ export default function Login() {
     }
   };
 
+  /* ================================
+     🖥️ UI
+  ================================== */
   return (
     <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-gradient-to-tr from-indigo-700 via-pink-600 to-purple-800 relative overflow-hidden">
       {/* 🌈 Animated Gradient Lights */}
@@ -92,7 +132,7 @@ export default function Login() {
         className="absolute inset-0 opacity-40 blur-3xl"
       />
 
-      {/* 🎨 Responsive Illustration (Now visible on all screens) */}
+      {/* 🎨 Illustration */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -127,6 +167,7 @@ export default function Login() {
           <p className="text-gray-200 mt-2 text-sm">Welcome back! Sign in to continue.</p>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleLogin} className="space-y-5">
           {error && (
             <motion.div
@@ -164,6 +205,7 @@ export default function Login() {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             type="submit"
+            disabled={loading}
             className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 py-2.5 rounded-lg font-semibold text-white shadow-md hover:shadow-lg transition-all duration-300"
           >
             {loading ? "Logging in..." : "Login"}
@@ -182,6 +224,7 @@ export default function Login() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={googleLogin}
+          disabled={googleLoading}
           className="flex items-center justify-center gap-3 bg-white text-gray-800 w-full py-2 rounded-lg shadow hover:shadow-md transition duration-300"
         >
           <img
