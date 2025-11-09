@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
 import API from "../api";
+import photo1 from "../assets/photo1.png";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -111,11 +112,12 @@ export default function Register() {
         className="hidden md:flex md:w-1/2 justify-center items-center p-10"
       >
         <motion.img
-          src="https://cdn.dribbble.com/userupload/8919986/file/original-0f2cda839f16d2f04b8938a27204f188.png?resize=1200x900&vertical=center"
+          src={photo1}
           alt="Career growth illustration"
-          className="w-full max-w-lg rounded-2xl shadow-2xl"
-          whileHover={{ scale: 1.02 }}
+          className="w-full max-w-2xl h-[480px] md:h-[550px] object-contain rounded-3xl"
+          whileHover={{ scale: 1.05 }}
         />
+
       </motion.div>
 
       {/* ✨ Right Side Form */}

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
 import API, { setAuth } from "../api";
+import photo1 from "../assets/photo1.png";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,10 +13,13 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showSplash, setShowSplash] = useState(true);
 
-  /* ====================================================
-     🔐 Email/Password Login Handler
-  ===================================================== */
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -27,12 +31,9 @@ export default function Login() {
 
     try {
       setLoading(true);
-
-      // Firebase Authentication
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Call backend for token
       const res = await API.post("/api/auth/login", {
         email: user.email,
         name: user.displayName || "User",
@@ -40,10 +41,8 @@ export default function Login() {
 
       const token = res.data?.token || res.data?.user?.token;
       const userData = res.data?.user || res.data;
-
       if (!token) throw new Error("Token not received from server");
 
-      // Save token
       setAuth({
         token,
         user: {
@@ -52,9 +51,6 @@ export default function Login() {
         },
       });
 
-      console.log("✅ Login success, token stored:", token);
-
-      // Redirect
       navigate("/dashboard/jobs", { replace: true });
     } catch (err) {
       console.error("❌ Login Error:", err);
@@ -64,9 +60,6 @@ export default function Login() {
     }
   };
 
-  /* ====================================================
-     🔐 Google Sign-In Handler
-  ===================================================== */
   const googleLogin = async () => {
     setGoogleLoading(true);
     setError("");
@@ -75,21 +68,16 @@ export default function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Send Google info to backend
       const res = await API.post("/api/auth/login", {
         email: user.email,
         name: user.displayName,
         photo: user.photoURL,
       });
 
-      console.log("📩 Google backend response:", res.data);
-
       const token = res.data?.token || res.data?.user?.token;
       const userData = res.data?.user || res.data;
-
       if (!token) throw new Error("Token not received from server");
 
-      // Store token and user
       setAuth({
         token,
         user: {
@@ -99,9 +87,6 @@ export default function Login() {
         },
       });
 
-      console.log("✅ Google login success, token stored:", token);
-
-      // Navigate after successful login
       navigate("/dashboard/jobs", { replace: true });
     } catch (err) {
       console.error("❌ Google Sign-In Error:", err);
@@ -111,53 +96,78 @@ export default function Login() {
     }
   };
 
-  /* ====================================================
-     🖥️ UI
-  ===================================================== */
-  return (
-    <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-gradient-to-tr from-indigo-700 via-pink-600 to-purple-800 relative overflow-hidden">
-      <motion.div
-        animate={{
-          background: [
-            "radial-gradient(circle at 20% 20%, #ff80b5, transparent 60%)",
-            "radial-gradient(circle at 80% 80%, #7dd3fc, transparent 60%)",
-            "radial-gradient(circle at 40% 60%, #a78bfa, transparent 60%)",
-          ],
-        }}
-        transition={{ repeat: Infinity, duration: 8, ease: "easeInOut" }}
-        className="absolute inset-0 opacity-40 blur-3xl"
-      />
+  // Splash screen
+  if (showSplash) {
+    const letters = "CARGOFIRST".split("");
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-900 via-sky-700 to-cyan-500">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex text-4xl sm:text-5xl md:text-7xl font-extrabold text-white tracking-widest"
+        >
+          {letters.map((letter, index) => (
+            <motion.span
+              key={index}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.15, duration: 0.4 }}
+              className="mx-1"
+            >
+              {letter}
+            </motion.span>
+          ))}
+        </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="absolute bottom-16 text-white text-sm tracking-widest"
+        >
+          Loading...
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-gradient-to-tr from-blue-900 via-sky-700 to-cyan-400 relative overflow-hidden px-4 sm:px-6">
+      {/* Illustration */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1 }}
         className="flex justify-center items-center w-full md:w-1/2 p-6 md:p-10 order-1 md:order-2"
       >
-        <motion.img
-          src="https://img.freepik.com/free-vector/job-interview-conversation_74855-7567.jpg"
-          alt="Job Portal Illustration"
-          className="w-full max-w-sm sm:max-w-md md:max-w-lg rounded-3xl shadow-2xl border border-white/20"
-          whileHover={{ scale: 1.03 }}
-        />
+      <motion.img
+        src={photo1}
+        alt="Career growth illustration"
+        className="w-full max-w-md sm:max-w-lg md:max-w-2xl h-[300px] sm:h-[400px] md:h-[550px] object-contain rounded-3xl md:ml-10 lg:ml-70"
+        whileHover={{ scale: 1.05 }}
+      />
+
       </motion.div>
 
+      {/* Login Card */}
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1 }}
-        className="relative z-10 w-11/12 sm:w-96 md:w-[420px] mx-auto bg-white/15 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-2xl p-8 text-white order-2 md:order-1 mb-8 md:mb-0"
+        className="relative z-10 w-full sm:w-10/12 md:w-[420px] bg-white/15 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-2xl p-6 sm:p-8 text-white order-2 md:order-1 mb-8 md:mb-0"
       >
         <div className="text-center mb-8">
           <motion.h1
             initial={{ scale: 0.9 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-4xl font-extrabold tracking-wide bg-gradient-to-r from-cyan-300 via-pink-400 to-purple-400 bg-clip-text text-transparent"
+            className="text-3xl sm:text-4xl font-extrabold tracking-wide bg-gradient-to-r from-cyan-300 via-sky-300 to-blue-400 bg-clip-text text-transparent"
           >
             JobSelect
           </motion.h1>
-          <p className="text-gray-200 mt-2 text-sm">Welcome back! Sign in to continue.</p>
+          <p className="text-gray-200 mt-2 text-sm sm:text-base">
+            Welcome back! Sign in to continue.
+          </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
@@ -176,7 +186,7 @@ export default function Login() {
             <input
               type="email"
               placeholder="you@gmail.com"
-              className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-gray-100 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-400 transition"
+              className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-gray-100 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-400 transition text-sm sm:text-base"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -187,7 +197,7 @@ export default function Login() {
             <input
               type="password"
               placeholder="••••••••"
-              className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-gray-100 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-pink-400 transition"
+              className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-gray-100 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-400 transition text-sm sm:text-base"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -198,7 +208,7 @@ export default function Login() {
             whileTap={{ scale: 0.97 }}
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 py-2.5 rounded-lg font-semibold text-white shadow-md hover:shadow-lg transition-all duration-300"
+            className="w-full bg-gradient-to-r from-blue-500 via-sky-500 to-cyan-400 py-2.5 rounded-lg font-semibold text-white shadow-md hover:shadow-lg transition-all duration-300 text-sm sm:text-base"
           >
             {loading ? "Logging in..." : "Login"}
           </motion.button>
@@ -215,15 +225,22 @@ export default function Login() {
           whileTap={{ scale: 0.95 }}
           onClick={googleLogin}
           disabled={googleLoading}
-          className="flex items-center justify-center gap-3 bg-white text-gray-800 w-full py-2 rounded-lg shadow hover:shadow-md transition duration-300"
+          className="flex items-center justify-center gap-3 bg-white text-gray-800 w-full py-2 rounded-lg shadow hover:shadow-md transition duration-300 text-sm sm:text-base"
         >
-          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+          <img
+            src="https://www.svgrepo.com/show/475656/google-color.svg"
+            alt="Google"
+            className="w-5 h-5"
+          />
           {googleLoading ? "Signing in..." : "Continue with Google"}
         </motion.button>
 
-        <p className="text-center text-sm text-gray-300 mt-6">
+        <p className="text-center text-xs sm:text-sm text-gray-300 mt-6">
           Don’t have an account?{" "}
-          <span onClick={() => navigate("/register")} className="text-cyan-300 font-semibold hover:text-white cursor-pointer">
+          <span
+            onClick={() => navigate("/register")}
+            className="text-sky-300 font-semibold hover:text-white cursor-pointer"
+          >
             Register
           </span>
         </p>
