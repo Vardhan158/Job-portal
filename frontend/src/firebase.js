@@ -4,13 +4,13 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 // Your Firebase config (from console)
 const firebaseConfig = {
-  apiKey: "AIzaSyD167tZXRrqZ4NSxu4gRduD5O82xC1Fyuo",
-  authDomain: "jobselection-b0ed4.firebaseapp.com",
-  projectId: "jobselection-b0ed4",
-  storageBucket: "jobselection-b0ed4.firebasestorage.app",
-  messagingSenderId: "367358582699",
-  appId: "1:367358582699:web:53c952fcd3c45b90403cee",
-  measurementId: "G-M27G27H8G1",
+  apiKey: "AIzaSyAno-8mTY-lcwSJP59UR8xc4Q11QvrT61s",
+  authDomain: "portal-5ca14.firebaseapp.com",
+  projectId: "portal-5ca14",
+  storageBucket: "portal-5ca14.firebasestorage.app",
+  messagingSenderId: "423005186117",
+  appId: "1:423005186117:web:6872aeb4ef6a979ef2db2c",
+  measurementId: "G-87MD02T55J",
 };
 
 // ✅ Initialize Firebase
