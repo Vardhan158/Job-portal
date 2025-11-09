@@ -12,6 +12,7 @@ const authRoutes = require("./routes/authRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 const applicationRoutes = require("./routes/applicationRoutes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
+const fs = require("fs");
 
 // =====================================
 // 🧩 Load environment variables & connect DB
@@ -28,10 +29,15 @@ const app = express();
 // 🛡️ Global Middleware
 // =====================================
 
-// ✅ Enable CORS for frontend communication
+// ✅ Enable CORS for both local & production frontend
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173", // Frontend URL
+    origin: [
+      "http://localhost:5173", // Local dev
+      "https://job-portal-1-ib7e.onrender.com", // ✅ Your Render frontend URL
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true, // Allow cookies/auth headers
   })
 );
@@ -46,11 +52,9 @@ app.use(morgan("dev"));
 // 🗂️ Static Files (for uploaded resumes or profile photos)
 // =====================================
 
-// Serve uploads from the "uploads" folder
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
-// Ensure resume folder exists (for safety)
-const fs = require("fs");
+// Ensure resume folder exists
 const uploadsDir = path.join(__dirname, "uploads", "resumes");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
