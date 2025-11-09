@@ -1,15 +1,25 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { logout } from "../api"; // ✅ import logout helper
+import toast from "react-hot-toast";
 
 const links = [
   { path: "/dashboard/jobs", label: "Job Posted", icon: "📋" },
   { path: "/dashboard/new", label: "Job Posting", icon: "📝" },
   { path: "/dashboard/analysis", label: "Customer Analysis", icon: "📊" },
   { path: "/dashboard/profile", label: "Profile", icon: "👤" },
-  { path: "/", label: "Logout", icon: "🚪" },
 ];
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+
+  /* 🧭 Logout Handler */
+  const handleLogout = () => {
+    logout(); // clear token + user
+    toast.success("Logged out successfully!");
+    navigate("/login", { replace: true });
+  };
+
   return (
     <motion.aside
       initial={{ x: -100 }}
@@ -47,6 +57,16 @@ export default function Sidebar() {
               </NavLink>
             </motion.div>
           ))}
+
+          {/* 🚪 Logout Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-2 mt-4 rounded-lg bg-red-500/90 hover:bg-red-600 transition text-white font-semibold shadow-md"
+          >
+            <span>🚪</span> Logout
+          </motion.button>
         </nav>
       </div>
 

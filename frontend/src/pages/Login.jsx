@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
-import API, { setAuth, isLoggedIn } from "../api"; // ✅ helper imports
+import API, { setAuth } from "../api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -13,18 +13,13 @@ export default function Login() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
-  /* 🧭 Redirect if already logged in */
-  useEffect(() => {
-    if (isLoggedIn()) {
-      navigate("/dashboard/jobs", { replace: true });
-    }
-  }, [navigate]);
-
-  /* ================================
+  /* ====================================================
      🔐 Email/Password Login Handler
-  ================================== */
+  ===================================================== */
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+
     if (!email || !password) {
       setError("Please enter both email and password.");
       return;
@@ -37,89 +32,90 @@ export default function Login() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Call backend to generate JWT
+      // Call backend for token
       const res = await API.post("/api/auth/login", {
         email: user.email,
         name: user.displayName || "User",
       });
 
-      // ✅ Save token & user
-      if (res.data?.user?.token) {
-        setAuth({
-          token: res.data.user.token,
-          user: {
-            name: res.data.user.name,
-            email: res.data.user.email,
-          },
-        });
+      const token = res.data?.token || res.data?.user?.token;
+      const userData = res.data?.user || res.data;
 
-        console.log("✅ Login success, token stored:", res.data.user.token);
+      if (!token) throw new Error("Token not received from server");
 
-        // ⏳ Give storage a moment before navigation
-        setTimeout(() => {
-          navigate("/dashboard/jobs", { replace: true });
-        }, 300);
-      } else {
-        throw new Error("Token not received from server");
-      }
+      // Save token
+      setAuth({
+        token,
+        user: {
+          name: userData.name || user.displayName || "User",
+          email: userData.email || user.email,
+        },
+      });
+
+      console.log("✅ Login success, token stored:", token);
+
+      // Redirect
+      navigate("/dashboard/jobs", { replace: true });
     } catch (err) {
-      console.error("Login Error:", err);
+      console.error("❌ Login Error:", err);
       setError("Invalid email or password.");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ================================
+  /* ====================================================
      🔐 Google Sign-In Handler
-  ================================== */
+  ===================================================== */
   const googleLogin = async () => {
     setGoogleLoading(true);
+    setError("");
+
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Call backend API to get JWT
+      // Send Google info to backend
       const res = await API.post("/api/auth/login", {
         email: user.email,
         name: user.displayName,
         photo: user.photoURL,
       });
 
-      // ✅ Save token & user info
-      if (res.data?.user?.token) {
-        setAuth({
-          token: res.data.user.token,
-          user: {
-            name: res.data.user.name,
-            email: res.data.user.email,
-            photo: res.data.user.photo,
-          },
-        });
+      console.log("📩 Google backend response:", res.data);
 
-        console.log("✅ Google login success, token stored:", res.data.user.token);
+      const token = res.data?.token || res.data?.user?.token;
+      const userData = res.data?.user || res.data;
 
-        // ⏳ Navigate after short delay
-        setTimeout(() => {
-          navigate("/dashboard/jobs", { replace: true });
-        }, 300);
-      } else {
-        throw new Error("Token not received from server");
-      }
+      if (!token) throw new Error("Token not received from server");
+
+      // Store token and user
+      setAuth({
+        token,
+        user: {
+          name: userData.name || user.displayName,
+          email: userData.email || user.email,
+          photo: userData.photo || user.photoURL,
+        },
+      });
+
+      console.log("✅ Google login success, token stored:", token);
+
+      // Navigate after successful login
+      navigate("/dashboard/jobs", { replace: true });
     } catch (err) {
-      console.error("Google Sign-In Error:", err);
+      console.error("❌ Google Sign-In Error:", err);
       setError("Google sign-in failed. Please try again.");
     } finally {
       setGoogleLoading(false);
     }
   };
 
-  /* ================================
+  /* ====================================================
      🖥️ UI
-  ================================== */
+  ===================================================== */
   return (
     <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-gradient-to-tr from-indigo-700 via-pink-600 to-purple-800 relative overflow-hidden">
-      {/* 🌈 Animated Gradient Lights */}
       <motion.div
         animate={{
           background: [
@@ -132,7 +128,6 @@ export default function Login() {
         className="absolute inset-0 opacity-40 blur-3xl"
       />
 
-      {/* 🎨 Illustration */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -147,14 +142,12 @@ export default function Login() {
         />
       </motion.div>
 
-      {/* 🧠 Login Card */}
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1 }}
         className="relative z-10 w-11/12 sm:w-96 md:w-[420px] mx-auto bg-white/15 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-2xl p-8 text-white order-2 md:order-1 mb-8 md:mb-0"
       >
-        {/* Header */}
         <div className="text-center mb-8">
           <motion.h1
             initial={{ scale: 0.9 }}
@@ -167,7 +160,6 @@ export default function Login() {
           <p className="text-gray-200 mt-2 text-sm">Welcome back! Sign in to continue.</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleLogin} className="space-y-5">
           {error && (
             <motion.div
@@ -212,14 +204,12 @@ export default function Login() {
           </motion.button>
         </form>
 
-        {/* Divider */}
         <div className="flex items-center gap-3 my-6">
           <div className="flex-1 h-px bg-white/30"></div>
           <span className="text-xs text-gray-300">or</span>
           <div className="flex-1 h-px bg-white/30"></div>
         </div>
 
-        {/* Google Login */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -227,21 +217,13 @@ export default function Login() {
           disabled={googleLoading}
           className="flex items-center justify-center gap-3 bg-white text-gray-800 w-full py-2 rounded-lg shadow hover:shadow-md transition duration-300"
         >
-          <img
-            src="https://www.svgrepo.com/show/475656/google-color.svg"
-            alt="Google"
-            className="w-5 h-5"
-          />
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
           {googleLoading ? "Signing in..." : "Continue with Google"}
         </motion.button>
 
-        {/* Footer */}
         <p className="text-center text-sm text-gray-300 mt-6">
           Don’t have an account?{" "}
-          <span
-            onClick={() => navigate("/register")}
-            className="text-cyan-300 font-semibold hover:text-white cursor-pointer"
-          >
+          <span onClick={() => navigate("/register")} className="text-cyan-300 font-semibold hover:text-white cursor-pointer">
             Register
           </span>
         </p>
